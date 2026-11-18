@@ -1,0 +1,17 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+.ruff_cache/
+
+# Données et artefacts générés (ne vont pas dans Git)
+data/raw/
+*.duckdb
+*.duckdb.wal
+mlruns/
+mlflow.db
+models/*.joblib
+
+# Secrets
+.env
