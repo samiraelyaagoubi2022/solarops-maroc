@@ -1,2 +1,5 @@
 pytest>=8
 ruff>=0.6
+requests>=2.32
+pandas>=2.2
+pyarrow>=16
