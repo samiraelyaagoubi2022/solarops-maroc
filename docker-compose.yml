@@ -5,3 +5,5 @@ services:
       dockerfile: Dockerfile.dev
     volumes:
       - .:/app
+    ports:
+      - "8888:8888"
