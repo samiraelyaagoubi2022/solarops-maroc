@@ -1,0 +1,11 @@
+version: 2
+
+sources:
+  - name: raw_data
+    schema: main
+    tables:
+      - name: weather
+        description: "Données brutes Open-Meteo en Parquet"
+        meta:
+          # On utilise read_parquet() avec le chemin absolu DANS DOCKER
+          external_location: "read_parquet('/app/data/raw/*/*.parquet')"

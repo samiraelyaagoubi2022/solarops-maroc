@@ -1,0 +1,101 @@
+version: 2
+
+models:
+  - name: stg_weather_hourly
+    description: "Données météo nettoyées et typées"
+    columns:
+      - name: weather_id
+        description: "Clé unique (ville + heure)"
+        tests:
+          - unique
+          - not_null
+
+      - name: city
+        description: "Nom de la ville"
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:                  
+                values: ['Ouarzazate', 'Laayoune', 'Dakhla', 'Tanger', 'Al Hoceima']
+
+      - name: time_utc
+        description: "Horodatage en UTC"
+        tests:
+          - not_null # Q4
+
+      # Q5 : Rayonnement
+      - name: shortwave_radiation
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              arguments:              
+                min_value: 0
+                max_value: 1400
+
+      # Q7 : Température
+      - name: temperature_2m
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              min_value: -15
+              max_value: 55
+
+      # Q8 : Humidité
+      - name: relative_humidity_2m
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              min_value: 0
+              max_value: 100
+
+      # Q9 : Pression
+      - name: surface_pressure
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              min_value: 800
+              max_value: 1100
+
+      # Q10 : Nuages (on teste les 4 colonnes)
+      - name: cloud_cover
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              min_value: 0
+              max_value: 100
+      - name: cloud_cover_low
+        tests:
+          - not_null
+          - dbt_utils.accepted_range: {min_value: 0, max_value: 100}
+      - name: cloud_cover_mid
+        tests:
+          - not_null
+          - dbt_utils.accepted_range: {min_value: 0, max_value: 100}
+      - name: cloud_cover_high
+        tests:
+          - not_null
+          - dbt_utils.accepted_range: {min_value: 0, max_value: 100}
+
+      # Q11 : Vent
+      - name: wind_speed_10m
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              min_value: 0
+              max_value: 150
+
+      # Q12 : Direction du vent
+      - name: wind_direction_10m
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              min_value: 0
+              max_value: 360
+
+      # Q13 : Précipitation
+      - name: precipitation
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              min_value: 0
+              max_value: 50

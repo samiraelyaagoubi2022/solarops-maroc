@@ -7,3 +7,12 @@ services:
       - .:/app
     ports:
       - "8888:8888"
+
+  dbt:
+    image: xemuliam/dbt:duckdb
+    volumes:
+      - .:/app
+    working_dir: /app
+    environment:
+      - DBT_PROFILES_DIR=/app
+    command: tail -f /dev/null

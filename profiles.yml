@@ -1,0 +1,19 @@
+solarops_dbt:
+  outputs:
+    dev:
+      type: duckdb
+      path: "dev.duckdb"  # <--- On enlève le "solarops_dbt/" devant
+      external_root: "/app/data/raw"
+      extensions:
+        - parquet
+      threads: 2
+
+    prod:
+      type: duckdb
+      path: "prod.duckdb" 
+      external_root: "/app/data/raw"
+      extensions:
+        - parquet
+      threads: 4
+
+  target: dev
