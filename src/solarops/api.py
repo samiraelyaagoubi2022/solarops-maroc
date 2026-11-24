@@ -1,4 +1,5 @@
 import os
+
 import mlflow.sklearn
 import pandas as pd
 from fastapi import FastAPI
@@ -6,7 +7,7 @@ from pydantic import BaseModel
 
 app = FastAPI(title="SolarOps Maroc API", description="API de prévision solaire")
 
-# On dit à MLflow où chercher les modèles dans le conteneur Docker
+# MLflow où chercher les modèles dans le conteneur Docker
 os.environ["MLFLOW_TRACKING_URI"] = "file:///app/mlruns"
 
 # On charge TON modèle grâce à TON Run ID
