@@ -7,5 +7,5 @@ sources:
       - name: weather
         description: "Données brutes Open-Meteo en Parquet"
         meta:
-          # On utilise read_parquet() avec le chemin absolu DANS DOCKER
-          external_location: "read_parquet('/app/data/raw/*/*.parquet')"
+           # On utilise un chemin relatif (../ pour sortir du dossier dbt)
+          external_location: "read_parquet('../data/raw/*/*.parquet')"
