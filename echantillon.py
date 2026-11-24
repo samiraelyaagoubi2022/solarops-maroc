@@ -5,7 +5,7 @@ import os
 df = pd.read_parquet('data/raw/Tanger/2024.parquet')
 
 # On garde seulement les 500 premières lignes (environ 20 jours de données)
-df_sample = df.head(500)
+df_sample = df.head(480) # 20 jours complets
 
 # On crée le dossier de test et on sauvegarde l'échantillon
 os.makedirs('tests/data/Tanger', exist_ok=True)

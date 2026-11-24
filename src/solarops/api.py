@@ -1,8 +1,8 @@
-from fastapi import FastAPI
-from pydantic import BaseModel
+import os
 import mlflow.sklearn
 import pandas as pd
-import os
+from fastapi import FastAPI
+from pydantic import BaseModel
 
 app = FastAPI(title="SolarOps Maroc API", description="API de prévision solaire")
 

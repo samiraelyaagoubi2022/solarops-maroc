@@ -1,3 +1,4 @@
+# ruff: noqa: E501
 import math
 from datetime import datetime
 
