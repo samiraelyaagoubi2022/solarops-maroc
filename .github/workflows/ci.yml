@@ -1,0 +1,93 @@
+name: CI Pipeline - SolarOps Maroc
+
+on:
+  push:
+    branches: [ "main", "feature/*" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  # ---------------------------------------------------------
+  # JOB 1 : Qualité du code et tests unitaires Python
+  # ---------------------------------------------------------
+  python-tests:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.11"
+        cache: 'pip' # Active le cache pour aller plus vite
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pytest ruff
+        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+
+    - name: Lint with ruff (Vérification de la syntaxe)
+      run: ruff check src/ tests/
+
+    - name: Test with pytest (Tests unitaires)
+      run: pytest tests/ -v
+
+  # ---------------------------------------------------------
+  # JOB 2 : Validation du projet dbt (avec de vraies données)
+  # ---------------------------------------------------------
+  dbt-validation:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.11"
+        cache: 'pip'
+
+    - name: Install dbt-duckdb
+      run: pip install dbt-duckdb
+
+    # On utilise notre échantillon de données de test
+    - name: Move real sample data to raw folder
+      run: |
+        mkdir -p data/raw
+        cp -r tests/data/* data/raw/
+        ls -R data/raw # Affiche les fichiers pour vérifier
+
+    - name: Create profiles.yml for CI
+      run: |
+        mkdir -p ~/.dbt
+        cat > ~/.dbt/profiles.yml <<EOF
+        solarops_dbt:
+          target: dev
+          outputs:
+            dev:
+              type: duckdb
+              path: "dev.duckdb"
+              extensions:
+                - parquet
+        EOF
+
+    - name: dbt deps & run & test
+      run: |
+        cd solarops_dbt
+        dbt deps
+        # On lance la VRAIE transformation sur les vraies données
+        dbt run
+        # On lance les 31 VRAIS tests de qualité
+        dbt test
+
+  # ---------------------------------------------------------
+  # JOB 3 : Build Docker (Vérifie que l'image se construit)
+  # ---------------------------------------------------------
+  docker-build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Build Docker image
+      run: |
+        docker build -f Dockerfile.dev -t solarops-test:latest .

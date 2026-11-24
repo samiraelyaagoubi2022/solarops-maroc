@@ -2,6 +2,16 @@ pytest>=8
 ruff>=0.6
 requests>=2.32
 pandas>=2.2
-pyarrow>=16
+pyarrow>=15,<16          
 jupyterlab>=4
 matplotlib>=3.8
+mlflow==2.10.0
+scikit-learn==1.4.0
+xgboost==2.0.3
+duckdb==0.10.0
+seaborn
+streamlit
+altair
+fastapi
+uvicorn
+protobuf<5
