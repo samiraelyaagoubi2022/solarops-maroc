@@ -11,7 +11,7 @@ app = FastAPI(title="SolarOps Maroc API", description="API de prévision solaire
 os.environ["MLFLOW_TRACKING_URI"] = "file:///app/mlruns"
 
 # On charge TON modèle grâce à TON Run ID
-MODEL_URI = "runs:/c7d0f35886214c60b020a23ea37112b0/random_forest_model" 
+MODEL_URI = "models:/SolarOps_Predictor@Champion"
 model = mlflow.sklearn.load_model(MODEL_URI)
 
 # On définit le format des données d'entrée (Pydantic)
