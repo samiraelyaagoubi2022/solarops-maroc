@@ -7,6 +7,10 @@ services:
       - .:/app
     ports:
       - "8888:8888"
+      - "5000:5000"
+      - "8000:8000"
+      - "8501:8501"
+    command: tail -f /dev/null
 
   dbt:
     image: xemuliam/dbt:duckdb

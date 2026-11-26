@@ -16,6 +16,8 @@ models/*.joblib
 # Secrets
 .env
 
+logs/
+.user.yml
 
 # Jupyter Notebook checkpoints
 .ipynb_checkpoints/

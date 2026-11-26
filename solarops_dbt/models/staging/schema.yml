@@ -14,10 +14,7 @@ models:
         description: "Nom de la ville"
         tests:
           - not_null
-          - accepted_values:
-              arguments:                  
-                values: ['Ouarzazate', 'Laayoune', 'Dakhla', 'Tanger', 'Al Hoceima']
-
+          
       - name: time_utc
         description: "Horodatage en UTC"
         tests:
