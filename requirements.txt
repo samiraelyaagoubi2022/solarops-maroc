@@ -15,3 +15,4 @@ altair
 fastapi
 uvicorn
 protobuf<5
+streamlit-geolocation

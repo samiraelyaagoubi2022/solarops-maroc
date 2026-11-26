@@ -1,12 +1,13 @@
 # ruff: noqa: E501
 import math
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import altair as alt
 import numpy as np
 import pandas as pd
 import requests
 import streamlit as st
+from streamlit_geolocation import streamlit_geolocation
 
 # ----------------------------------------------------------------------------
 # Configuration
@@ -21,7 +22,7 @@ st.set_page_config(
 MOIS = ["Janvier", "Février", "Mars", "Avril", "Mai", "Juin", "Juillet",
         "Août", "Septembre", "Octobre", "Novembre", "Décembre"]
 
-VILLES = {  # (latitude, longitude)
+VILLES = {
     "Rabat": (34.02, -6.84),
     "Casablanca": (33.57, -7.59),
     "Marrakech": (31.63, -8.00),
@@ -69,8 +70,7 @@ st.markdown(
 # Fonctions utilitaires
 # ----------------------------------------------------------------------------
 def solar_geometry(hour: int, month: int, lat: float):
-    """Calcule l'angle zénithal solaire (°) et un proxy de ciel clair (0-1)."""
-    day_of_year = int(30.4 * month - 15)  # milieu de mois
+    day_of_year = int(30.4 * month - 15)
     decl = math.radians(23.45) * math.sin(2 * math.pi * (284 + day_of_year) / 365)
     hour_angle = math.radians(15 * (hour - 12))
     lat_r = math.radians(lat)
@@ -81,8 +81,7 @@ def solar_geometry(hour: int, month: int, lat: float):
     return zenith, max(0.0, cos_z)
 
 
-def build_payload(hour, month, lat, radiation_lag, cloud, temp,
-                  humidity, pressure, wind_speed, wind_dir) -> dict:
+def build_payload(hour, month, lat, radiation_lag, cloud, temp, humidity, pressure, wind_speed, wind_dir) -> dict:
     zenith, clear_sky = solar_geometry(hour, month, lat)
     return {
         "hour_sin": float(np.sin(2 * np.pi * hour / 24)),
@@ -118,72 +117,143 @@ def api_online(api_url: str) -> bool:
         return False
 
 
+def get_open_meteo_forecast(lat, lon):
+    url = "https://api.open-meteo.com/v1/forecast"
+    params = {
+        "latitude": lat,
+        "longitude": lon,
+        "hourly": "shortwave_radiation,temperature_2m,relative_humidity_2m,surface_pressure,cloud_cover,cloud_cover_low,cloud_cover_mid,cloud_cover_high,wind_speed_10m,wind_direction_10m",
+        "timezone": "GMT",
+        "past_days": 1,
+        "forecast_days": 2
+    }
+    response = requests.get(url, params=params)
+    return response.json() if response.status_code == 200 else None
+
+
 # ----------------------------------------------------------------------------
-# Barre latérale : paramètres
+# Barre latérale
 # ----------------------------------------------------------------------------
 with st.sidebar:
     st.header("⚙️ Paramètres")
+    
+    mode = st.radio("Mode de fonctionnement", ["📍 GPS Temps Réel", "🎛️ Mode Manuel"])
 
-    st.subheader("Centrale")
-    ville = st.selectbox("Site", list(VILLES.keys()))
-    lat, _lon = VILLES[ville]
     capacity = st.number_input("Puissance installée (kW)", 10, 1_000_000, 1000, step=100)
-
-    st.subheader("Date et heure")
-    month = st.select_slider("Mois", options=list(range(1, 13)),
-                             value=6, format_func=lambda m: MOIS[m - 1])
-    hour = st.slider("Heure (0-23)", 0, 23, 13, format="%dh")
-
-    st.subheader("Météo")
-    radiation_lag = st.slider("Rayonnement d'hier (W/m²)", 0, 1200, 600)
-    cloud_cover = st.slider("Couverture nuageuse (%)", 0, 100, 10)
-    temp = st.slider("Température (°C)", -5, 50, 25)
-
-    with st.expander("Paramètres avancés"):
-        humidity = st.slider("Humidité relative (%)", 0, 100, 50)
-        pressure = st.slider("Pression de surface (hPa)", 900, 1100, 1010)
-        wind_speed = st.slider("Vitesse du vent (km/h)", 0, 100, 15)
-        wind_dir = st.slider("Direction du vent (°)", 0, 360, 180)
-        api_url = st.text_input("URL de l'API", "http://localhost:8000")
-
+    api_url = st.text_input("URL de l'API", "http://localhost:8000")
+    
     online = api_online(api_url)
     if online:
         st.success("API connectée", icon="🟢")
     else:
         st.error("API injoignable", icon="🔴")
 
-    run = st.button("Calculer la prévision ⚡", type="primary", use_container_width=True)
+    st.divider()
+
+    if mode == "📍 GPS Temps Réel":
+        st.subheader("Localisation")
+        location = streamlit_geolocation()
+        
+        if location and location['latitude'] is not None:
+            lat = location['latitude']
+            lon = location['longitude']
+            st.info(f"Position : {lat:.4f}, {lon:.4f}")
+            run = st.button("Calculer (Temps Réel) ⚡", type="primary", use_container_width=True)
+            mode_gps = True
+        else:
+            st.warning("Veuillez autoriser la géolocalisation.")
+            run = False
+            mode_gps = False
+            
+    else:
+        st.subheader("Paramètres manuels")
+        ville = st.selectbox("Site", list(VILLES.keys()))
+        lat, _lon = VILLES[ville]
+        
+        month = st.select_slider("Mois", options=list(range(1, 13)), value=6, format_func=lambda m: MOIS[m - 1])
+        hour = st.slider("Heure (0-23)", 0, 23, 13, format="%dh")
+        
+        radiation_lag = st.slider("Rayonnement d'hier (W/m²)", 0, 1200, 600)
+        cloud_cover = st.slider("Couverture nuageuse (%)", 0, 100, 10)
+        temp = st.slider("Température (°C)", -5, 50, 25)
+        
+        with st.expander("Paramètres avancés"):
+            humidity = st.slider("Humidité relative (%)", 0, 100, 50)
+            pressure = st.slider("Pression de surface (hPa)", 900, 1100, 1010)
+            wind_speed = st.slider("Vitesse du vent (km/h)", 0, 100, 15)
+            wind_dir = st.slider("Direction du vent (°)", 0, 360, 180)
+
+        run = st.button("Calculer (Manuel) ⚡", type="primary", use_container_width=True)
+        mode_gps = False
 
 # ----------------------------------------------------------------------------
 # Calcul
 # ----------------------------------------------------------------------------
 if run:
-    kwargs = dict(month=month, lat=lat, radiation_lag=radiation_lag, cloud=cloud_cover,
-                  temp=temp, humidity=humidity, pressure=pressure,
-                  wind_speed=wind_speed, wind_dir=wind_dir)
     try:
         with st.spinner("Interrogation du modèle..."):
-            current = call_api(api_url, build_payload(hour=hour, **kwargs))
-            curve = [max(0.0, call_api(api_url, build_payload(hour=h, **kwargs)))
-                     for h in range(24)]
+            if mode_gps:
+                forecast = get_open_meteo_forecast(lat, lon)
+                if not forecast:
+                    st.error("Impossible de récupérer la météo Open-Meteo.")
+                    st.stop()
+                
+                hourly = forecast["hourly"]
+                curve = []
+                
+                # Heure UTC pour trouver le bon index dans la réponse API
+                now_utc = datetime.utcnow()
+                now_str = now_utc.strftime("%Y-%m-%dT%H:00")
+                
+                # Heure locale pour l'affichage
+                now_local = now_utc + timedelta(hours=1)
+                
+                try:
+                    start_idx = hourly["time"].index(now_str)
+                except ValueError:
+                    start_idx = 24
+                
+                for i in range(start_idx, start_idx + 24):
+                    dt = datetime.fromisoformat(hourly["time"][i])
+                    lag_idx = i - 24
+                    
+                    payload = build_payload(
+                        hour=dt.hour, month=dt.month, lat=lat,
+                        radiation_lag=hourly["shortwave_radiation"][lag_idx] if lag_idx >= 0 else 0.0,
+                        cloud=hourly["cloud_cover"][i], temp=hourly["temperature_2m"][i],
+                        humidity=hourly["relative_humidity_2m"][i], pressure=hourly["surface_pressure"][i],
+                        wind_speed=hourly["wind_speed_10m"][i], wind_dir=hourly["wind_direction_10m"][i]
+                    )
+                    curve.append(max(0.0, call_api(api_url, payload)))
+                
+                result_hour = now_local.hour
+                result_month = now_local.month
+                result_ville = f"GPS ({lat:.2f}, {lon:.2f})"
+                current_pred = curve[0]
+                
+            else:
+                kwargs = dict(month=month, lat=lat, radiation_lag=radiation_lag, cloud=cloud_cover,
+                              temp=temp, humidity=humidity, pressure=pressure,
+                              wind_speed=wind_speed, wind_dir=wind_dir)
+                current_pred = call_api(api_url, build_payload(hour=hour, **kwargs))
+                curve = [max(0.0, call_api(api_url, build_payload(hour=h, **kwargs))) for h in range(24)]
+                result_hour = hour
+                result_month = month
+                result_ville = ville
+
         st.session_state["result"] = {
-            "current": max(0.0, current),
+            "current": current_pred,
             "curve": curve,
-            "hour": hour,
+            "hour": result_hour,
             "capacity": capacity,
-            "ville": ville,
-            "month": month,
-            "time": datetime.now().strftime("%H:%M:%S"),
+            "ville": result_ville,
+            "month": result_month,
+            "time": (datetime.utcnow() + timedelta(hours=1)).strftime("%H:%M:%S"),
         }
     except requests.exceptions.ConnectionError:
-        st.error("Impossible de joindre l'API. Vérifiez qu'elle est lancée "
-                 "(`uvicorn main:app --port 8000`).")
-    except requests.exceptions.Timeout:
-        st.error("L'API met trop de temps à répondre.")
-    except requests.exceptions.HTTPError as e:
-        st.error(f"Erreur de l'API : {e}")
-    except (KeyError, ValueError) as e:
-        st.error(f"Réponse inattendue de l'API : {e}")
+        st.error("Impossible de joindre l'API.")
+    except Exception as e:
+        st.error(f"Erreur : {e}")
 
 # ----------------------------------------------------------------------------
 # Affichage
@@ -194,33 +264,29 @@ tab_prev, tab_data, tab_about = st.tabs(["📈 Prévision", "📋 Données", "�
 
 with tab_prev:
     if not res:
-        st.info("Réglez les paramètres dans la barre latérale puis cliquez sur "
-                "**Calculer la prévision**.")
+        st.info("Réglez les paramètres puis cliquez sur le bouton de calcul.")
     else:
         curve = res["curve"]
         cap = res["capacity"]
         pred = res["current"]
         yield_pct = min(pred / cap * 100, 100)
-        energy = sum(curve)  # 24 pas horaires => kWh
+        energy = sum(curve)
         peak_h = int(np.argmax(curve))
 
-        st.caption(f"{res['ville']} · {MOIS[res['month'] - 1]} · "
-                   f"calculé à {res['time']}")
+        st.caption(f"{res['ville']} · Mois {res['month']} · calculé à {res['time']}")
 
         c1, c2, c3, c4 = st.columns(4)
-        c1.metric(f"Production à {res['hour']}h", f"{pred:,.1f} kW")
+        c1.metric(f"Production (maintenant)", f"{pred:,.1f} kW")
         c2.metric("Taux de charge", f"{yield_pct:.1f} %")
         c3.metric("Énergie sur la journée", f"{energy:,.0f} kWh")
-        c4.metric("Pic de production", f"{max(curve):,.0f} kW", f"à {peak_h}h",
-                  delta_color="off")
+        c4.metric("Pic de production", f"{max(curve):,.0f} kW", f"à {peak_h}h", delta_color="off")
 
         st.progress(int(yield_pct), text=f"Utilisation de la capacité : {yield_pct:.1f} %")
 
         st.subheader("Profil de production sur 24 h")
         df = pd.DataFrame({"Heure": range(24), "Production (kW)": curve})
         base = alt.Chart(df).encode(
-            x=alt.X("Heure:Q", scale=alt.Scale(domain=[0, 23]),
-                    axis=alt.Axis(title="Heure de la journée", tickMinStep=1)),
+            x=alt.X("Heure:Q", scale=alt.Scale(domain=[0, 23]), axis=alt.Axis(title="Heure de la journée", tickMinStep=1)),
             y=alt.Y("Production (kW):Q", axis=alt.Axis(title="kW")),
             tooltip=["Heure", alt.Tooltip("Production (kW):Q", format=".1f")],
         )
@@ -232,8 +298,7 @@ with tab_prev:
                        alt.GradientStop(color="rgba(245,158,11,0.05)", offset=1)],
                 x1=1, x2=1, y1=1, y2=0),
         )
-        marker = alt.Chart(pd.DataFrame({"Heure": [res["hour"]],
-                                         "Production (kW)": [pred]})) \
+        marker = alt.Chart(pd.DataFrame({"Heure": [res["hour"]], "Production (kW)": [pred]})) \
             .mark_point(size=160, filled=True, color="#b91c1c") \
             .encode(x="Heure:Q", y="Production (kW):Q")
         st.altair_chart((area + marker).properties(height=350), use_container_width=True)
@@ -257,9 +322,9 @@ with tab_about:
         **SolarOps Maroc** estime la production d'une centrale photovoltaïque à partir
         de conditions météorologiques et de la position du soleil.
 
-        - L'angle zénithal et le ciel clair sont **calculés** selon le site, le mois et l'heure.
-        - Le modèle de prévision est servi par une API **FastAPI** (`/predict`).
-        - Le taux de charge = production / puissance installée.
+        - **Mode GPS** : Récupère la vraie météo via l'API Open-Meteo Forecast.
+        - **Mode Manuel** : Utilise les curseurs pour simuler des scénarios.
+        - Le modèle de prévision est servi par une API **FastAPI**.
         """
     )
 
